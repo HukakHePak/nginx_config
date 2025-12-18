@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  nginx:
+    image: nginx:stable
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    restart: unless-stopped
+
+  certbot:
+    build:
+      context: ./certbot
+    image: certbot-cron:latest
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    restart: unless-stopped
+
+  certbot_init:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    # Первичный запрос сертификата для hukakhepak.ru и www.hukakhepak.ru (с email)
+    command: >
+      certonly --webroot --webroot-path=/var/www/certbot \
+      --email nikak_ne_rak@mail.ru --agree-tos --no-eff-email \
+      -d hukakhepak.ru -d www.hukakhepak.ru

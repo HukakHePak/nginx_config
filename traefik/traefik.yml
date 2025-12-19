@@ -17,6 +17,6 @@ providers:
 certificatesResolvers:
   myresolver:
     acme:
-      email: changeme@example.com
+      email: nikak_ne_rak@mail.ru
       storage: /letsencrypt/acme.json
       tlsChallenge: {}

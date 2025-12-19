@@ -6,7 +6,7 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.myresolver.acme.email=nikak_ne_rak@mail.ru
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
     ports:
@@ -15,10 +15,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/letsencrypt:/letsencrypt
-    restart: unless-stopped
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
     networks:
       - traefik
 
 networks:
   traefik:
-    driver: bridge
+    external: true

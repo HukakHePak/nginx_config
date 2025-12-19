@@ -13,15 +13,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/letsencrypt:/letsencrypt
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      # dynamic file provider removed; routing via Docker labels now
     restart: unless-stopped
     networks:
-      - web
+      - traefik
 
 networks:
-  web:
+  traefik:
     driver: bridge

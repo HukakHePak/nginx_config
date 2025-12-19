@@ -1,11 +1,12 @@
 services:
   traefik:
-    image: traefik:latest
+    image: traefik:v2.10
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      - --api.insecure=true
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.email=nikak_ne_rak@mail.ru
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
@@ -16,10 +17,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/letsencrypt:/letsencrypt
-    restart: unless-stopped
     networks:
       - traefik
 
 networks:
   traefik:
-    external: true
+    driver: bridge

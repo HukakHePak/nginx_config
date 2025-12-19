@@ -1,84 +1,43 @@
-Nginx + Certbot (Docker)
+# Traefik proxy (repo-specific notes)
 
-Коротко
-- Этот репозиторий содержит `nginx` как обратный прокси и `certbot` для получения/продления TLS через HTTP‑01 (webroot).
-- Конфиги nginx лежат в `nginx/conf.d/`. Webroot для ACME — `certbot/www/`. Сертификаты хранятся в `certbot/conf/` (монтируется как `/etc/letsencrypt`).
+Файлы и назначение
+- `docker-compose.yml`: один сервис `traefik` — обратный прокси (ports 80, 443). Монтирует `/var/run/docker.sock` и `traefik/letsencrypt`.
+- `traefik/traefik.yml`: статическая конфигурация Traefik (entryPoints, Docker provider, ACME resolver `myresolver`).
+- `traefik/letsencrypt/acme.json`: файл хранения ACME (сертификаты/ключи). Файл по умолчанию пустой — Traefik создаст/обновит его.
 
-Основные принципы
-- Для успешной валидации HTTP‑01 каждый vhost в `nginx/conf.d/` должен отдавать `/.well-known/acme-challenge/` из `/var/www/certbot` (см. пример в `oxo.hukakhepak.conf`).
-- Первичное получение сертификата выполняется вручную (см. раздел ниже). После этого контейнер `certbot` запускает `certbot renew` по расписанию и продляет сертификаты автоматически.
+Быстрый старт
+1. Создать внешнюю сеть (однократно):
 
-Быстрые команды
-- Поднять сервисы:
-
-```sh
-docker-compose up -d --build
+```bash
+docker network create traefik
 ```
 
-- Остановить и удалить орфаны:
+2. Убедиться в правах на `acme.json` (Linux):
 
-```sh
-docker-compose down --remove-orphans
+```bash
+touch traefik/letsencrypt/acme.json
+chmod 600 traefik/letsencrypt/acme.json
 ```
 
-- Проверить конфигурацию nginx:
+3. Запустить Traefik:
 
-```sh
-docker-compose run --rm --entrypoint "nginx -t" nginx
-```
-
-- Смотреть логи nginx / certbot:
-
-```sh
-docker-compose logs -f nginx
-docker-compose logs -f certbot
-```
-
-Первичное получение сертификата (ручное)
-- Пример для одного домена:
-
-```sh
-docker-compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot -d oxo.hukakhepak.ru --email nikak_ne_rak@mail.ru --agree-tos --no-eff-email" certbot
-```
-
-- Пример для SAN (несколько имён в одном сертификате):
-
-```sh
-docker-compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot -d example.com -d www.example.com --email nikak_ne_rak@mail.ru --agree-tos --no-eff-email" certbot
-```
-
-- После успешного получения сертификатов перезапустите `nginx`/compose:
-
-```sh
+```bash
 docker-compose up -d
 ```
 
-Добавление нового поддомена — минимальные шаги
-1. Добавьте `server` блок в `nginx/conf.d/` с `server_name new.domain` и блоком ACME:
+4. Посмотреть логи:
 
-```nginx
-location ^~ /.well-known/acme-challenge/ {
-	root /var/www/certbot;
-	try_files $uri =404;
-}
+```bash
+docker-compose logs -f traefik
 ```
 
-2. Убедитесь, что DNS A‑запись указывает на сервер и порт 80 доступен извне.
-3. Выпустите сертификат вручную (см. команду выше).
-4. Перезапустите `docker-compose`.
+Изменения и конфигурация
+- ACME email и поведение сохранены в [traefik/traefik.yml](traefik/traefik.yml). Если нужно изменить контактный email — отредактируйте этот файл.
+- Настройка маршрутов выполняется через Docker (серивисы должны быть подключены к сети `traefik`).
 
-Про `host.docker.internal`
-- `host.docker.internal` резолвится внутри контейнера в адрес хоста и подходит, если целевое приложение публикует порт на хост (например `ports: "8000:8000"`). Работает на Docker Desktop (Windows/Mac). Для Linux это может не работать — в таком случае лучше подключать контейнеры к общей Docker сети и проксировать по `http://service_name:port`.
+Полезные команды
+- Перезапуск Traefik: `docker-compose restart traefik`
+- Проверка состояния контейнеров: `docker ps`
 
-Примеры и замечания
-- В `nginx/conf.d/oxo.hukakhepak.conf` добавлен ACME маршрут и proxy на `host.docker.internal:8000` — если приложение слушает на хосте на порту 8000, proxy будет работать.
-- Никогда не включайте SSL‑блоки, которые ссылаются на несуществующие файлы `/etc/letsencrypt/live/.../fullchain.pem`, иначе nginx не запустится.
-
-Если хотите, могу:
-- добавить вспомогательный скрипт, который парсит `server_name` и формирует команду для первичной выдачи (автоматизация), или
-- переключить workflow на `--nginx` плагин (требует иного образа/плагинов).
-
-----
-
-Файл обновлён.
-
+Безопасность
+- `acme.json` содержит приватные ключи — держите права ограниченными (`600`) и не добавляйте файл в публичные репозитории.
